@@ -6,7 +6,6 @@ from PyPDF2 import PdfReader
 import re
 import tiktoken
 
-
 def extract_text_from_pdf(file_path):
     pdf = PdfReader(file_path)
     text_pages = []
@@ -17,10 +16,8 @@ def extract_text_from_pdf(file_path):
     text = "".join(text_pages)
     return text
 
-
 def extract_text(input_text):
-    start_patterns_primary = [r"FIRST CLAIM FOR RELIEF", r"FIRST CAUSE OF ACTION", r"FIRST COA", r"FIRST CAUSE",
-                              r"COUNT 1", r"COUNT ONE", r"COUNT I"]
+    start_patterns_primary = [r"FIRST CLAIM FOR RELIEF", r"FIRST CAUSE OF ACTION", r"FIRST COA", r"FIRST CAUSE", r"COUNT 1", r"COUNT ONE", r"COUNT I"]
     start_patterns_secondary = [r"CLASS ALLEGATIONS", r"COLLECTIVE ACTION ALLEGATIONS", r"CLASS ACTION ALLEGATIONS"]
     end_pattern_primary = [r"PRAYER FOR RELIEF", r"RELIEF SOUGHT", r"RELIEF REQUESTED", r"prayer"]
     end_pattern_secondary = [r"Respectfully submitted", r"TRIAL BY JURY IS DEMANDED", r"DEMAND FOR JURY TRIAL"]
@@ -47,17 +44,15 @@ def extract_text(input_text):
 
     return input_text[start_match.start():end_match.start()]
 
-
 def remove_last_sentence(text):
     # Find the last occurrence of a period ('.') followed by a space (' ')
     last_period_index = text.rfind('. ')
-
+    
     if last_period_index != -1:
         # Remove the last sentence by excluding it from the text
-        text = text[:last_period_index + 1]
-
+        text = text[:last_period_index+1]
+    
     return text
-
 
 def num_tokens_from_string(string: str, encoding_name: str) -> int:
     """Returns the number of tokens in a text string."""
@@ -65,15 +60,13 @@ def num_tokens_from_string(string: str, encoding_name: str) -> int:
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
-
 def process_text_with_chat_gpt(case, prompt):
     completion = openai.ChatCompletion.create(
         model="gpt-3.5-turbo-16k",
-        messages=[{"role": "user", "content": prompt + case}],
+        messages=[{"role":"user","content":prompt + case}],
         temperature=0
     )
     return completion.choices[0].message['content']
-
 
 def main():
     MAX_TOKENS = 16000
@@ -93,13 +86,11 @@ def main():
             full_text = extract_text_from_pdf(file_path)
             extracted_text = extract_text(full_text)
             if extracted_text:
-                num_tokens = num_tokens_from_string(PROMPT, "cl100k_base") + num_tokens_from_string(extracted_text,
-                                                                                                    "cl100k_base")
+                num_tokens = num_tokens_from_string(PROMPT, "cl100k_base") + num_tokens_from_string(extracted_text, "cl100k_base")
                 print(f"{count}. {filename}: {num_tokens} tokens")
                 while num_tokens > MAX_TOKENS:
                     extracted_text = remove_last_sentence(extracted_text)
-                    num_tokens = num_tokens_from_string(PROMPT, "cl100k_base") + num_tokens_from_string(extracted_text,
-                                                                                                        "cl100k_base")
+                    num_tokens = num_tokens_from_string(PROMPT, "cl100k_base") + num_tokens_from_string(extracted_text, "cl100k_base")
                 gpt_output = process_text_with_chat_gpt(extracted_text, PROMPT)
                 if isinstance(gpt_output, str):
                     try:
@@ -108,15 +99,10 @@ def main():
                         print(f"Error: Could not parse gpt_output: {gpt_output}")
                         return  # or handle this error however you wish
                 # Check that gpt_output is a list of lists and each sublist contains at least two strings
-                if not all(isinstance(output, (list, tuple)) and len(output) >= 2 and all(
-                        isinstance(elem, str) for elem in output) for output in gpt_output):
+                if not all(isinstance(output, (list, tuple)) and len(output) >= 2 and all(isinstance(elem, str) for elem in output) for output in gpt_output):
                     print(f"Warning: Unexpected gpt_output: {gpt_output}")
                 else:
-                    updated_gpt_output = list(map(lambda output: [output[0].lower().replace("violation of the ",
-                                                                                            "").replace(
-                        "violations of the ", "").replace("violation of ", "").replace("violations of ", "")] + output[
-                                                                                                                1:],
-                                                  gpt_output))
+                    updated_gpt_output = list(map(lambda output: [output[0].lower().replace("violation of the ", "").replace("violations of the ", "").replace("violation of ", "").replace("violations of ", "")] + output[1:], gpt_output))
                     print(f"GPT output:\n{updated_gpt_output}")
                     # Add the updated data to the DataFrame
                     for output in updated_gpt_output:
@@ -127,7 +113,6 @@ def main():
     average_tokens = total_tokens / count if count > 0 else 0
     print(f"\nAverage tokens per file: {average_tokens}")
     return df
-
 
 if __name__ == "__main__":
     df = main()
